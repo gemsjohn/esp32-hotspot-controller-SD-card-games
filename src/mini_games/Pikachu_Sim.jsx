@@ -18,10 +18,21 @@ import {
 import * as THREE from 'three';
 
 // --- CONFIGURATION ---
-const WS_URL = `ws://${window.location.hostname}:81`;
-const JOY_CENTER = 2048;
-const JOY_MAX = 4095;
+// const WS_URL = `ws://${window.location.hostname}:81`;
+const WS_URL = `ws://192.168.4.1/ws`;
+const JOY_CENTER = 0;
+const JOY_MAX = 2048;
 const DEADZONE = 200;
+
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
+
+const settings = {
+  grassCount: isMobile ? 800 : 5000,
+  shadowRes: isMobile ? 512 : 2048,
+  dpr: isMobile ? [1, 1] : [1, 2], // 1x resolution on mobile (pixelated look)
+  precision: isMobile ? 'lowp' : 'highp',
+  sparkleMultiplier: isMobile ? 0.3 : 1,
+};
 
 const normalizeJoystick = (rawVal) => {
   if (rawVal === undefined || rawVal === null) return 0;
@@ -86,7 +97,7 @@ const InputManager = () => {
 
 const LightningStatic = ({ intensity }) => {
   const linesRef = useRef();
-  
+
   // Create 5-8 random jagged lines
   const count = 6;
   const lines = useMemo(() => {
@@ -102,7 +113,7 @@ const LightningStatic = ({ intensity }) => {
     linesRef.current.children.forEach((line, i) => {
       // Jitter logic: only update points occasionally or every frame for "static"
       const positions = line.geometry.attributes.position.array;
-      
+
       // Starting point near the center
       let x = (Math.random() - 0.5) * 2;
       let y = Math.random() * 3;
@@ -119,7 +130,7 @@ const LightningStatic = ({ intensity }) => {
         z += (Math.random() - 0.5) * 1.5 * intensity;
       }
       line.geometry.attributes.position.needsUpdate = true;
-      
+
       // Flicker opacity
       line.material.opacity = (Math.random() > 0.5 ? 1 : 0.2) * (intensity * 0.8);
     });
@@ -140,14 +151,14 @@ const LightningStatic = ({ intensity }) => {
           <lineBasicMaterial transparent color="#ffff00" linewidth={2} />
         </line>
       ))}
-      
+
       {/* High density sparks/static when charging */}
-      <Sparkles 
-        count={Math.floor(intensity * 50)} 
-        scale={3 * intensity} 
-        size={2 + intensity * 5} 
-        speed={4} 
-        color="yellow" 
+      <Sparkles
+        count={Math.floor(intensity * 50 * settings.sparkleMultiplier)}
+        scale={3 * intensity}
+        size={isMobile ? 1 : 2 + intensity * 5}
+        speed={4}
+        color="yellow"
       />
     </group>
   );
@@ -218,9 +229,9 @@ const PlayerPikachu = ({ lightRef, containerRef }) => {
     // D. GLOW
     const isPressed = gameData.e || gameData.tof1 > 40;
     const targetIntensity = isPressed ? (gameData.tof1 / 200 || 1) : 0;
-     // Update local state for the static effect component
+    // Update local state for the static effect component
     if (Math.abs(staticIntensity - targetIntensity) > 0.05) {
-        setStaticIntensity(targetIntensity);
+      setStaticIntensity(targetIntensity);
     }
 
     scene.traverse((obj) => {
@@ -250,8 +261,8 @@ const PlayerPikachu = ({ lightRef, containerRef }) => {
 
   return (
     <group ref={containerRef} position={[0, 0, 5]}>
-      <pointLight 
-        position={[0, 4, 0]}       
+      <pointLight
+        position={[0, 4, 0]}
         intensity={10 + staticIntensity * 40} // Light pulses with static
         distance={10 + staticIntensity * 5}
         decay={2}
@@ -260,7 +271,7 @@ const PlayerPikachu = ({ lightRef, containerRef }) => {
 
       <group ref={meshRef}>
         <primitive object={scene} scale={1.8} rotation={[0, Math.PI, 0]} />
-        
+
         {/* ADD THE STATIC EFFECT HERE */}
         {staticIntensity > 0.1 && <LightningStatic intensity={staticIntensity} />}
       </group>
@@ -284,7 +295,7 @@ const OriginMarker = () => {
 };
 
 const ReactiveGrass = ({ playerRef }) => {
-  const count = 5000;
+  const count = settings.grassCount;
   const meshRef = useRef();
 
   // 1. Load GLTF - TRY BOTH PATHS (Check your folder structure!)
@@ -388,10 +399,10 @@ const Scene = () => {
 
       <directionalLight
         ref={lightRef}
-        castShadow
+        castShadow={!isMobile} // Shadows are heavy; consider disabling for mobile
         intensity={1.5}
-        shadow-mapSize={[2048, 2048]}
-        shadow-bias={-0.0005} // <--- ADDITIONAL SHADING FIX
+        shadow-mapSize={settings.shadowRes} // 512 instead of 2048
+        shadow-bias={-0.0005}
       >
         <orthographicCamera attach="shadow-camera" args={[-30, 30, 30, -30, 0.5, 100]} />
       </directionalLight>
@@ -407,23 +418,21 @@ const Scene = () => {
 
       <Grid infiniteGrid fadeDistance={200} fadeStrength={5} sectionSize={10} sectionColor="#4ECDC4" cellColor="#222222" />
 
-      <EffectComposer disableNormalPass>
-        <Bloom intensity={1.5} luminanceThreshold={0.5} mipmapBlur />
+      <EffectComposer disableNormalPass multisampling={isMobile ? 0 : 8}>
+        {/* Only use Bloom on Desktop - it's very expensive for mobile GPUs */}
+        {!isMobile && <Bloom intensity={1.5} luminanceThreshold={0.5} mipmapBlur />}
 
-        {/* --- ADD THESE FOR COLOR GRADING --- */}
-
-        {/* Brightness & Contrast: Keep values small (e.g., 0.1) */}
         <BrightnessContrast brightness={0.12} contrast={0.4} />
 
-        <Noise opacity={0.05} />
+        {/* Skip Noise and Chromatic Aberration on mobile to save draw calls */}
+        {!isMobile && (
+          <>
+            <Noise opacity={0.05} />
+            <ChromaticAberration offset={[0.0012, 0.0012]} />
+          </>
+        )}
 
-        {/* Hue & Saturation: 0.5 saturation adds a lot of "pop" to Pikachu */}
-        {/* <HueSaturation saturation={0.1} hue={0.2} /> */}
-
-        {/* ToneMapping: Makes the colors feel more "filmic" or "organic" */}
         <ToneMapping mode={THREE.ACESFilmicToneMapping} />
-
-        <ChromaticAberration offset={[0.0012, 0.0012]} />
       </EffectComposer>
     </>
   );
@@ -469,10 +478,10 @@ const PokemonControlsMenu = () => {
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#fff')}
         >
           {/* The iconic small arrow seen in Pokemon menus */}
-          <span style={{ 
-            fontSize: '14px', 
+          <span style={{
+            fontSize: '14px',
             marginRight: '12px',
-            visibility: isOpen ? 'visible' : 'hidden' 
+            visibility: isOpen ? 'visible' : 'hidden'
           }}>▶</span>
           <span style={{ fontSize: '14px', color: '#333' }}>CONTROLS</span>
         </div>
@@ -498,26 +507,26 @@ const PokemonControlsMenu = () => {
                 minWidth: '280px',
               }}
             >
-              <h2 style={{ 
-                fontSize: '12px', 
-                marginBottom: '15px', 
-                color: '#ff1111', 
+              <h2 style={{
+                fontSize: '12px',
+                marginBottom: '15px',
+                color: '#ff1111',
                 borderBottom: '2px solid #eee',
                 paddingBottom: '8px'
               }}>
                 PIKACHU COMMANDS
               </h2>
-              
+
               <div style={{ fontSize: '10px', lineHeight: '2.2' }}>
                 <p style={itemStyle}><span style={keyStyle}>W</span> MOVE FORWARD</p>
                 <p style={itemStyle}><span style={keyStyle}>A</span> MOVE LEFT</p>
                 <p style={itemStyle}><span style={keyStyle}>D</span> MOVE RIGHT</p>
                 <p style={itemStyle}><span style={keyStyle}>S</span> MOVE BACKWARD</p>
                 <p style={itemStyle}><span style={keyStyle}>E</span> THUNDERBOLT</p>
-                
-                <div style={{ 
-                  marginTop: '15px', 
-                  fontSize: '8px', 
+
+                <div style={{
+                  marginTop: '15px',
+                  fontSize: '8px',
                   color: '#888',
                   borderTop: '2px solid #eee',
                   paddingTop: '10px'
@@ -564,13 +573,17 @@ export default function PickachuSim() {
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
       <PokemonControlsMenu />
-      <Canvas 
-        shadows 
-        camera={{ fov: 50 }}
-        gl={{ 
-          toneMapping: THREE.AgXToneMapping, // Modern "filmic" look
-          toneMappingExposure: 1.2           // Global brightness multiplier
+      <Canvas
+        shadows={!isMobile} // Optional: Disable shadows entirely on mobile for massive boost
+        dpr={settings.dpr}
+        gl={{
+          antialias: !isMobile,
+          powerPreference: "high-performance",
+          precision: settings.precision,
+          toneMapping: THREE.AgXToneMapping,
+          toneMappingExposure: 1.2
         }}
+        camera={{ fov: 50 }}
       >
         <React.Suspense fallback={null}>
           <Scene />

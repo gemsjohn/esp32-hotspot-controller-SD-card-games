@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton+SC&family=Bangers&family=Bungee&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Delicious+Handrawn&family=Google+Sans+Code:ital,wght@0,300..800;1,300..800&family=Press+Start+2P&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=VT323&display=swap">
+    <title>Pixel Editor v1.2</title>
+    <style>
+        :root {
+            --bg-gray: #7b7b7b;
+            --panel-gray: #676667;
+            --border-light: #b9b8b8;
+            --border-dark: #1a1a1a;
+            --border-medium: #808080;
+            --win-blue: #363e56;
+        }
+
+        body {
+            background-color: #333;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Courier New', Courier, monospace;
+            user-select: none;
+        }
+
+        /* Utility Classes */
+        .font-press-start {
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        .font-vt323 {
+            font-family: 'VT323', monospace;
+        }
+
+        .font-delicious-handrawn {
+            font-family: 'Delicious Handrawn', monospace;
+        }
+
+        .font-google-sans-code {
+            font-family: 'Google Sans Code', 'monospace';
+        }
+
+
+        .pixel-text {
+            text-shadow: 4px 4px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000;
+        }
+
+        .roboto {
+            font-family: 'Roboto', sans-serif;
+        }
+
+        .bungee-regular {
+            font-family: "Bungee", sans-serif;
+            font-weight: 400;
+            font-style: normal;
+        }
+
+        /* Windows 95 Bevel Style */
+        .outset {
+            border: 2px solid;
+            border-color: var(--border-light) var(--border-dark) var(--border-dark) var(--border-light);
+            background: var(--panel-gray);
+        }
+
+        .inset {
+            border: 1px solid;
+            border-color: var(--border-medium) var(--border-light) var(--border-light) var(--border-medium);
+            background: #272826;
+        }
+
+        .inset2 {
+            border: 1px solid;
+            border-color: var(--border-medium) var(--border-light) var(--border-light) var(--border-medium);
+            background: #272826;
+            width: 98%;
+            height: 98%;
+        }
+        .inset3 {
+            border: 1px solid;
+            border-color: var(--border-medium) var(--border-light) var(--border-light) var(--border-medium);
+            background: #272826;
+            width: 99%;
+            height: 99%;
+            line-height: 2;
+        }
+
+        #window {
+            width: 900px;
+            height: 90%;
+            display: flex;
+            flex-direction: column;
+            padding: 3px;
+        }
+
+        #title-bar {
+            background: var(--win-blue);
+            color: rgb(202, 202, 202);
+            padding: 4px 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 4px;
+        }
+
+        .win-btn {
+            width: 20px;
+            height: 18px;
+            background: var(--panel-gray);
+            border: 3px solid;
+            border-color: var(--border-light) var(--border-dark) var(--border-dark) var(--border-light);
+            color: black;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            line-height: 16px;
+        }
+
+        #toolbar-top {
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+            border-bottom: 2px solid var(--border-medium);
+        }
+
+        #main-container {
+            display: flex;
+            flex: 1;
+            padding: 10px;
+            gap: 10px;
+        }
+
+        /* Sidebar */
+        #sidebar-left {
+            width: 60px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .tool-btn {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 24px;
+        }
+
+        .tool-btn.active {
+            border-color: var(--border-medium) var(--border-light) var(--border-light) var(--border-medium);
+            background: #a0a0a0;
+        }
+
+        /* Canvas Area */
+        #canvas-wrapper {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Right Panel */
+        #right-panel {
+            width: 220px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .panel-box {
+            padding: 10px;
+            font-size: 14px;
+            color: #fff;
+            line-height: 1.4;
+        }
+
+        .panel-title {
+            /* border-bottom: 1px solid #555; */
+            /* margin-bottom: 5px; */
+            font-size: 10px;
+            /* font-weight: bold; */
+        }
+
+        .palette-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 4px;
+            margin-top: 5px;
+        }
+
+        .swatch {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #000;
+            cursor: pointer;
+        }
+
+        .swatch.active {
+            outline: 2px solid yellow;
+            z-index: 10;
+        }
+
+        #preview-box {
+            width: 100%;
+            height: 150px;
+            background: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #previewCanvas {
+            image-rendering: pixelated;
+            width: 120px;
+            height: 120px;
+            border: 1px solid #555;
+        }
+
+        /* Footer */
+        #status-bar {
+            height: 30px;
+            margin-top: 5px;
+            padding: 0 10px;
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+            color: #000;
+        }
+
+        .btn-ok {
+            margin-left: auto;
+            padding: 5px 25px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="window" class="outset">
+        <div id="title-bar">
+            <span class="pixel-text bungee-regular">Pixel Editor v1.2</span>
+            <div class="window-controls">
+                <div class="win-btn bungee-regular">_</div>
+                <div class="win-btn bungee-regular">□</div>
+                <div class="win-btn bungee-regular">X</div>
+            </div>
+        </div>
+
+        <div id="main-container">
+            <!-- TOOLS -->
+            <div id="sidebar-left">
+                <div class="tool-btn outset active" id="tool-pencil" title="Pencil">✏️</div>
+                <div class="tool-btn outset" id="tool-eraser" title="Eraser">🧽</div>
+                <div class="tool-btn outset" id="tool-bucket" title="Fill">🪣</div>
+
+                <div style="margin-top: 20px;">
+                    <label style="font-size: 10px; color:#000">SIZE</label>
+                    <input type="number" id="mapW" value="24" style="width: 40px; font-size:10px;">
+                    <input type="number" id="mapH" value="24" style="width: 40px; font-size:10px;">
+                </div>
+            </div>
+
+            <!-- MAIN CANVAS -->
+            <div id="canvas-wrapper" class="inset">
+                <div class="inset2">
+                <canvas id="editorCanvas"></canvas>
+                </div>
+            </div>
+
+            <!-- PROPERTIES & PALETTE -->
+            <div id="right-panel">
+                <div class="panel-box inset font-press-start" style="background: #272826;">
+                    <div style="padding: 2px; font-size: 10px; line-height: 2;">
+                        <div class="panel-title">Layer Properties</div>
+                        X: <span id="statX">0</span><br>
+                        Y: <span id="statY">0</span><br>
+                        VAL: <span id="statVal">0</span><br>
+                        COLOR: <span id="statVal">0</span>
+
+                    </div>
+                </div>
+
+                <div class="panel-box inset font-press-start" style="background: #272826;">
+                    <div class="panel-title">Palette</div>
+                    <div class="palette-grid">
+                        <div class="swatch active" style="background: #aaaaae;" onclick="setBrush(0, this)"></div>
+                        <div class="swatch" style="background: #000;" onclick="setBrush(1, this)"></div>
+                        <div class="swatch" style="background: #f44;" onclick="setBrush(2, this)"></div>
+                        <div class="swatch" style="background: #4f4;" onclick="setBrush(3, this)"></div>
+                        <div class="swatch" style="background: #44f;" onclick="setBrush(4, this)"></div>
+                    </div>
+                </div>
+
+                <div class="panel-box inset" style="background: #272826;">
+                    <div class="panel-title">Preview</div>
+                    <div id="preview-box">
+                        <canvas id="previewCanvas"></canvas>
+                    </div>
+                    <button class="outset" style="width:100%; margin-top:5px; font-size:10px;">Preview</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="status-bar" class="inset" style="background: var(--panel-gray);">
+            <span id="status-text">STATUS: Drawing Mode Active | MAP001.TXT</span>
+            <button class="outset btn-ok" onclick="exportMap()">OK (EXPORT)</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('editorCanvas');
+        const ctx = canvas.getContext('2d');
+        const preCanvas = document.getElementById('previewCanvas');
+        const preCtx = preCanvas.getContext('2d');
+
+        let MAP_W = 24;
+        let MAP_H = 24;
+        let grid = [];
+        let brush = 0;
+        let tool = 'pencil';
+
+        // View State
+        let scale = 20;
+        let offsetX = 20;
+        let offsetY = 20;
+        let isPanning = false;
+        let isPainting = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+
+        const colors = ['#aaaaae', '#000000', '#ff4444', '#44ff44', '#4444ff'];
+
+        function init() {
+            resize();
+            resetGrid();
+
+            canvas.addEventListener('mousedown', startAction);
+            window.addEventListener('mousemove', moveAction);
+            window.addEventListener('mouseup', endAction);
+            canvas.addEventListener('wheel', handleZoom, { passive: false });
+
+            document.getElementById('tool-pencil').onclick = () => setTool('pencil');
+            document.getElementById('tool-eraser').onclick = () => setTool('eraser');
+            document.getElementById('tool-bucket').onclick = () => setTool('bucket');
+
+            requestAnimationFrame(render);
+        }
+
+        function resetGrid() {
+            MAP_W = parseInt(document.getElementById('mapW').value) || 24;
+            MAP_H = parseInt(document.getElementById('mapH').value) || 24;
+            grid = Array(MAP_H).fill().map(() => Array(MAP_W).fill(0));
+            preCanvas.width = MAP_W;
+            preCanvas.height = MAP_H;
+        }
+
+        function resize() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+
+        function setBrush(v, el) {
+            brush = v;
+            document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+            el.classList.add('active');
+            if (tool === 'eraser') setTool('pencil');
+        }
+
+        function setTool(t) {
+            tool = t;
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tool-${t}`).classList.add('active');
+        }
+
+        function handleZoom(e) {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            const mouseX = e.clientX - canvas.getBoundingClientRect().left;
+            const mouseY = e.clientY - canvas.getBoundingClientRect().top;
+            const worldX = (mouseX - offsetX) / scale;
+            const worldY = (mouseY - offsetY) / scale;
+
+            scale *= delta;
+            scale = Math.max(2, Math.min(scale, 50));
+            offsetX = mouseX - (worldX * scale);
+            offsetY = mouseY - (worldY * scale);
+        }
+
+        function startAction(e) {
+            if (e.button === 1) isPanning = true;
+            else {
+                if (tool === 'bucket') { floodFill(e); }
+                else { isPainting = true; paint(e); }
+            }
+        }
+
+        function moveAction(e) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const worldX = Math.floor((mouseX - offsetX) / scale);
+            const worldY = Math.floor((mouseY - offsetY) / scale);
+
+            if (worldX >= 0 && worldX < MAP_W && worldY >= 0 && worldY < MAP_H) {
+                document.getElementById('statX').innerText = worldX;
+                document.getElementById('statY').innerText = worldY;
+                document.getElementById('statVal').innerText = grid[worldY][worldX];
+            }
+
+            if (isPanning) {
+                offsetX += e.clientX - lastMouseX;
+                offsetY += e.clientY - lastMouseY;
+            } else if (isPainting) {
+                paint(e);
+            }
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        }
+
+        function endAction() { isPanning = false; isPainting = false; }
+
+        function paint(e) {
+            const rect = canvas.getBoundingClientRect();
+            const worldX = Math.floor((e.clientX - rect.left - offsetX) / scale);
+            const worldY = Math.floor((e.clientY - rect.top - offsetY) / scale);
+
+            if (worldX >= 0 && worldX < MAP_W && worldY >= 0 && worldY < MAP_H) {
+                grid[worldY][worldX] = (tool === 'eraser') ? 0 : brush;
+                updatePreview();
+            }
+        }
+
+        function floodFill(e) {
+            const rect = canvas.getBoundingClientRect();
+            const startX = Math.floor((e.clientX - rect.left - offsetX) / scale);
+            const startY = Math.floor((e.clientY - rect.top - offsetY) / scale);
+            const targetColor = grid[startY][startX];
+            if (targetColor === brush) return;
+
+            const fill = (x, y) => {
+                if (x < 0 || x >= MAP_W || y < 0 || y >= MAP_H || grid[y][x] !== targetColor) return;
+                grid[y][x] = brush;
+                fill(x + 1, y); fill(x - 1, y); fill(x, y + 1); fill(x, y - 1);
+            };
+            fill(startX, startY);
+            updatePreview();
+        }
+
+        function updatePreview() {
+            const imgData = preCtx.createImageData(MAP_W, MAP_H);
+            for (let y = 0; y < MAP_H; y++) {
+                for (let x = 0; x < MAP_W; x++) {
+                    const idx = (y * MAP_W + x) * 4;
+                    const hex = colors[grid[y][x]];
+                    imgData.data[idx] = parseInt(hex.slice(1, 3), 16);
+                    imgData.data[idx + 1] = parseInt(hex.slice(3, 5), 16);
+                    imgData.data[idx + 2] = parseInt(hex.slice(5, 7), 16);
+                    imgData.data[idx + 3] = 255;
+                }
+            }
+            preCtx.putImageData(imgData, 0, 0);
+        }
+
+        function render() {
+            ctx.fillStyle = '#242123';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let y = 0; y < MAP_H; y++) {
+                for (let x = 0; x < MAP_W; x++) {
+                    ctx.fillStyle = colors[grid[y][x]];
+                    ctx.fillRect(offsetX + x * scale, offsetY + y * scale, scale, scale);
+                }
+            }
+
+            // Blueprint Grid
+            ctx.strokeStyle = 'rgba(0, 50, 255, 0.5)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let x = 0; x <= MAP_W; x++) {
+                ctx.moveTo(offsetX + x * scale, offsetY);
+                ctx.lineTo(offsetX + x * scale, offsetY + MAP_H * scale);
+            }
+            for (let y = 0; y <= MAP_H; y++) {
+                ctx.moveTo(offsetX, offsetY + y * scale);
+                ctx.lineTo(offsetX + MAP_W * scale, offsetY + y * scale);
+            }
+            ctx.stroke();
+
+            requestAnimationFrame(render);
+        }
+
+        function exportMap() {
+            let output = `#define MAP_W ${MAP_W}\n#define MAP_H ${MAP_H}\n\nint worldMap[${MAP_H}][${MAP_W}] = {\n`;
+            for (let r = 0; r < MAP_H; r++) {
+                output += "    {" + grid[r].join(",") + "}" + (r < MAP_H - 1 ? ",\n" : "");
+            }
+            output += "\n};";
+            const blob = new Blob([output], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = "worldMap.txt";
+            a.click();
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
