@@ -8,8 +8,8 @@
     <title>Pixel Editor v1.2</title>
     <style>
         :root {
-            --bg-gray: #7b7b7b;
-            --panel-gray: #676667;
+            --bg-gray: #555555;
+            --panel-gray: #5f5f5f;
             --border-light: #b9b8b8;
             --border-dark: #1a1a1a;
             --border-medium: #808080;
@@ -70,6 +70,7 @@
             border: 1px solid;
             border-color: var(--border-medium) var(--border-light) var(--border-light) var(--border-medium);
             background: #272826;
+            text-shadow: 2px 2px 4px #000000;
         }
 
         .inset2 {
@@ -155,11 +156,12 @@
             align-items: center;
             cursor: pointer;
             font-size: 24px;
+            background-color: #5f5f5f;
         }
 
         .tool-btn.active {
             border-color: var(--border-medium) var(--border-light) var(--border-light) var(--border-medium);
-            background: #a0a0a0;
+            background: #353535;
         }
 
         /* Canvas Area */
@@ -216,7 +218,7 @@
         #preview-box {
             width: 100%;
             height: 150px;
-            background: #222;
+            /* background: #222; */
             display: flex;
             justify-content: center;
             align-items: center;
@@ -264,9 +266,27 @@
         <div id="main-container">
             <!-- TOOLS -->
             <div id="sidebar-left">
-                <div class="tool-btn outset active" id="tool-pencil" title="Pencil">✏️</div>
-                <div class="tool-btn outset" id="tool-eraser" title="Eraser">🧽</div>
-                <div class="tool-btn outset" id="tool-bucket" title="Fill">🪣</div>
+                <div class="tool-btn outset" id="tool-pencil" title="Pencil" >
+                    <img 
+                        src="public/images/pencil_icon_000.png" 
+                        alt="Pencil Icon"
+                        style="height: 40px; width: 40px;"
+                    >
+                </div>
+                <div class="tool-btn outset" id="tool-eraser" title="Eraser">
+                    <img 
+                        src="public/images/eraser_icon_000.png" 
+                        alt="Pencil Icon"
+                        style="height: 40px; width: 40px;"
+                    >
+                </div>
+                <div class="tool-btn outset" id="tool-bucket" title="Fill">
+                    <img 
+                        src="public/images/bucket_icon_000.png" 
+                        alt="Pencil Icon"
+                        style="height: 40px; width: 40px;"
+                    >
+                </div>
 
                 <div style="margin-top: 20px;">
                     <label style="font-size: 10px; color:#000">SIZE</label>
@@ -306,7 +326,7 @@
                     </div>
                 </div>
 
-                <div class="panel-box inset" style="background: #272826;">
+                <div class="panel-box inset font-press-start" style="background: #272826;">
                     <div class="panel-title">Preview</div>
                     <div id="preview-box">
                         <canvas id="previewCanvas"></canvas>
@@ -316,7 +336,7 @@
             </div>
         </div>
 
-        <div id="status-bar" class="inset" style="background: var(--panel-gray);">
+        <div id="status-bar" class="inset font-press-start" style="color: white;">
             <span id="status-text">STATUS: Drawing Mode Active | MAP001.TXT</span>
             <button class="outset btn-ok" onclick="exportMap()">OK (EXPORT)</button>
         </div>
