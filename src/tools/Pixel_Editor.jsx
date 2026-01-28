@@ -1,0 +1,407 @@
+import React, { useRef, useEffect, useMemo, useState, useCallback } from 'react';
+
+const PALETTE = ['#aaaaae', '#000000', '#ff4444', '#44ff44', '#4444ff', '#ffff44', '#44ffff', '#ff44ff', '#ffffff', '#884444'];
+
+// Icons as text/svg placeholders to avoid broken image links
+const Icons = {
+    Pencil: () => <svg viewBox="0 0 24 24" fill="white" width="24" height="24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" /></svg>,
+    Eraser: () => <svg viewBox="0 0 24 24" fill="white" width="24" height="24"><path d="M15.14 3c-.51 0-1.02.2-1.41.59L2.59 14.73c-.78.78-.78 2.05 0 2.83L5.17 20.17C5.56 20.56 6.07 20.75 6.59 20.75 7.1 20.75 7.61 20.56 8 20.17l12.41-12.41c.78-.78.78-2.05 0-2.83l-2.59-2.59C17.02 3.53 16.27 3.34 15.53 3.34 15.41 3.23 15.28 3.11 15.14 3zM15.53 5.17l2.59 2.59-1.41 1.41-2.59-2.59L15.53 5.17zM12.71 6.59l2.59 2.59-9.17 9.17-2.59-2.59L12.71 6.59z" /></svg>,
+    Bucket: () => <svg viewBox="0 0 24 24" fill="white" width="24" height="24"><path d="M19.34 8.21l-7.5-7.5c-.39-.39-1.02-.39-1.41 0L1.76 9.38c-.39.39-.39 1.02 0 1.41l8.59 8.59c.78.78 2.05.78 2.83 0l6.17-6.17c.39-.39.39-1.02 0-1.41l-.01.41zm-8.29 8.29L3.17 10.09 11.09 2.17 18.67 9.75 11.05 16.5zM22 19h-9v2h9v-2z" /></svg>
+};
+
+export default function PixelEditor() {
+    // State
+    const [width, setWidth] = useState(24);
+    const [height, setHeight] = useState(24);
+    const [grid, setGrid] = useState([]);
+    const [tool, setTool] = useState('pencil'); // pencil, eraser, bucket
+    const [brush, setBrush] = useState(1); // Color index
+    const [hoverStat, setHoverStat] = useState({ x: 0, y: 0, val: 0 });
+
+    // Viewport State
+    const canvasRef = useRef(null);
+    const previewRef = useRef(null);
+    const [scale, setScale] = useState(15);
+    const viewOffset = useRef({ x: 50, y: 50 });
+    const isPanning = useRef(false);
+    const isPainting = useRef(false);
+    const lastMouse = useRef({ x: 0, y: 0 });
+
+    // Initialize Grid
+    useEffect(() => {
+        const newGrid = Array(height).fill(0).map(() => Array(width).fill(0));
+        setGrid(newGrid);
+    }, []);
+
+    // Handle Resize while preserving data
+    const handleSizeChange = (newW, newH) => {
+        const w = Math.max(0, parseInt(newW) || 0);
+        const h = Math.max(0, parseInt(newH) || 0);
+
+        const newGrid = Array(h).fill(0).map((_, y) =>
+            Array(w).fill(0).map((_, x) => {
+                if (y < grid.length && x < grid[0].length) {
+                    return grid[y][x];
+                }
+                return 0;
+            })
+        );
+
+        setWidth(w);
+        setHeight(h);
+        setGrid(newGrid);
+    };
+
+    // Outline Logic (Requirement 3)
+    const handleOutline = () => {
+        const newGrid = grid.map((row, y) =>
+            row.map((val, x) => {
+                // Check perimeter
+                if (x === 0 || x === width - 1 || y === 0 || y === height - 1) {
+                    return 1; // Black (Index 1)
+                }
+                return val;
+            })
+        );
+        setGrid(newGrid);
+    };
+
+    // Flood Fill Algorithm
+    const floodFill = (startX, startY, targetColor) => {
+        if (targetColor === brush) return;
+
+        const newGrid = grid.map(row => [...row]);
+        const stack = [[startX, startY]];
+
+        while (stack.length) {
+            const [x, y] = stack.pop();
+            if (x < 0 || x >= width || y < 0 || y >= height) continue;
+            if (newGrid[y][x] !== targetColor) continue;
+
+            newGrid[y][x] = brush;
+
+            stack.push([x + 1, y]);
+            stack.push([x - 1, y]);
+            stack.push([x, y + 1]);
+            stack.push([x, y - 1]);
+        }
+        setGrid(newGrid);
+    };
+
+    // Paint Logic
+    const applyPaint = (worldX, worldY) => {
+        if (worldX < 0 || worldX >= width || worldY < 0 || worldY >= height) return;
+
+        if (tool === 'bucket') {
+            floodFill(worldX, worldY, grid[worldY][worldX]);
+        } else {
+            const newVal = tool === 'eraser' ? 0 : brush;
+            if (grid[worldY][worldX] !== newVal) {
+                const newGrid = [...grid];
+                newGrid[worldY] = [...newGrid[worldY]];
+                newGrid[worldY][worldX] = newVal;
+                setGrid(newGrid);
+            }
+        }
+    };
+
+    // Main Render Loop
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d', { alpha: false });
+        let animationFrameId;
+
+        const render = () => {
+            // Resize canvas to fill parent (Responsive Requirement 2)
+            const rect = canvas.parentElement.getBoundingClientRect();
+            if (canvas.width !== rect.width || canvas.height !== rect.height) {
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+            }
+
+            // Background
+            ctx.fillStyle = '#222';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Grid Drawing
+            const ox = viewOffset.current.x;
+            const oy = viewOffset.current.y;
+
+            // Draw Cells
+            if (grid.length > 0) {
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+                        // Optimization: Only draw if visible
+                        const px = ox + x * scale;
+                        const py = oy + y * scale;
+                        if (px < -scale || py < -scale || px > canvas.width || py > canvas.height) continue;
+
+                        ctx.fillStyle = PALETTE[grid[y][x]] || PALETTE[0];
+                        ctx.fillRect(Math.floor(px), Math.floor(py), Math.ceil(scale), Math.ceil(scale));
+                    }
+                }
+            }
+
+            // Draw Grid Lines (Blueprint style)
+            ctx.strokeStyle = '#114691';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            // Verticals
+            for (let x = 0; x <= width; x++) {
+                ctx.moveTo(ox + x * scale, oy);
+                ctx.lineTo(ox + x * scale, oy + height * scale);
+            }
+            // Horizontals
+            for (let y = 0; y <= height; y++) {
+                ctx.moveTo(ox, oy + y * scale);
+                ctx.lineTo(ox + width * scale, oy + y * scale);
+            }
+            ctx.stroke();
+
+            animationFrameId = requestAnimationFrame(render);
+        };
+
+        render();
+        return () => cancelAnimationFrame(animationFrameId);
+    }, [grid, width, height, scale]); // Re-bind if data structures change
+
+    // Update Preview Canvas
+    useEffect(() => {
+        const pCanvas = previewRef.current;
+        if (!pCanvas || grid.length === 0 || width === 0 || height === 0) return;
+
+        pCanvas.width = width;
+        pCanvas.height = height;
+        const pCtx = pCanvas.getContext('2d');
+        const imgData = pCtx.createImageData(width, height);
+
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const colorHex = PALETTE[grid[y][x]] || '#000000';
+                const r = parseInt(colorHex.slice(1, 3), 16);
+                const g = parseInt(colorHex.slice(3, 5), 16);
+                const b = parseInt(colorHex.slice(5, 7), 16);
+                const idx = (y * width + x) * 4;
+                imgData.data[idx] = r;
+                imgData.data[idx + 1] = g;
+                imgData.data[idx + 2] = b;
+                imgData.data[idx + 3] = 255;
+            }
+        }
+        pCtx.putImageData(imgData, 0, 0);
+    }, [grid, width, height]);
+
+
+    // Mouse Handlers
+    const handleWheel = (e) => {
+        e.preventDefault(); // Stop page scroll
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const worldX = (mouseX - viewOffset.current.x) / scale;
+        const worldY = (mouseY - viewOffset.current.y) / scale;
+
+        let newScale = scale * delta;
+        newScale = Math.max(2, Math.min(newScale, 100)); // Clamp zoom
+
+        viewOffset.current.x = mouseX - worldX * newScale;
+        viewOffset.current.y = mouseY - worldY * newScale;
+        setScale(newScale);
+    };
+
+    const handleMouseDown = (e) => {
+        if (e.button === 1 || e.shiftKey) {
+            isPanning.current = true;
+        } else {
+            isPainting.current = true;
+            paintAction(e);
+        }
+        lastMouse.current = { x: e.clientX, y: e.clientY };
+    };
+
+    const handleMouseMove = (e) => {
+        // Update Hover Stats
+        const rect = canvasRef.current.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const wx = Math.floor((mx - viewOffset.current.x) / scale);
+        const wy = Math.floor((my - viewOffset.current.y) / scale);
+
+        if (wx >= 0 && wx < width && wy >= 0 && wy < height) {
+            setHoverStat({ x: wx, y: wy, val: grid[wy][wx] });
+        }
+
+        if (isPanning.current) {
+            viewOffset.current.x += e.clientX - lastMouse.current.x;
+            viewOffset.current.y += e.clientY - lastMouse.current.y;
+        } else if (isPainting.current) {
+            paintAction(e);
+        }
+        lastMouse.current = { x: e.clientX, y: e.clientY };
+    };
+
+    const paintAction = (e) => {
+        const rect = canvasRef.current.getBoundingClientRect();
+        const wx = Math.floor((e.clientX - rect.left - viewOffset.current.x) / scale);
+        const wy = Math.floor((e.clientY - rect.top - viewOffset.current.y) / scale);
+        applyPaint(wx, wy);
+    };
+
+    const handleMouseUp = () => {
+        isPanning.current = false;
+        isPainting.current = false;
+    };
+
+    const exportMap = () => {
+        let output = `#define MAP_W ${width}\n#define MAP_H ${height}\n\nint worldMap[${height}][${width}] = {\n`;
+        for (let r = 0; r < height; r++) {
+            output += "    {" + grid[r].join(",") + "}" + (r < height - 1 ? ",\n" : "");
+        }
+        output += "\n};";
+        const blob = new Blob([output], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = "worldMap.txt";
+        a.click();
+    };
+
+    return (
+        <div id="window" className="outset">
+            <div id="title-bar">
+                <span className="pixel-text" style={{fontSize: '20px'}}>Pixel Editor v2.0</span>
+                <div className="window-controls">
+                    <a
+                        className="win-btn outset btn-action"
+                        style={{ marginTop: 'auto', fontSize: '12px', padding: '1px', color: 'black' }}
+                        href="/"
+                        title="exit"
+                    >
+                        _
+                    </a>
+                    <a
+                        className="win-btn outset btn-action"
+                        style={{ marginTop: 'auto', fontSize: '12px', padding: '1px', color: 'black' }}
+                        href="/"
+                        title="exit"
+                    >
+                        [ ]
+                    </a>
+                    <a
+                        className="win-btn outset btn-action"
+                        style={{ marginTop: 'auto', fontSize: '12px', padding: '1px', color: 'black' }}
+                        href="/"
+                        title="exit"
+                    >
+                        X
+                    </a>
+                </div>
+            </div>
+
+            <div id="main-container">
+                <div id="sidebar-left">
+                    <div className={`tool-btn outset ${tool === 'pencil' ? 'active' : ''}`} onClick={() => setTool('pencil')} title="Pencil">
+                        <img
+                            src="/images/pencil_icon_000.png"
+                            alt="Pencil Icon"
+                            style={{ height: "40px", width: "40px" }}
+                        />
+                    </div>
+                    <div className={`tool-btn outset ${tool === 'eraser' ? 'active' : ''}`} onClick={() => setTool('eraser')} title="Eraser">
+                        <img
+                            src="/images/eraser_icon_000.png"
+                            alt="Pencil Icon"
+                            style={{ height: "40px", width: "40px" }}
+                        />
+                    </div>
+                    <div className={`tool-btn outset ${tool === 'bucket' ? 'active' : ''}`} onClick={() => setTool('bucket')} title="Fill">
+                        <img
+                            src="/images/bucket_icon_000.png"
+                            alt="Pencil Icon"
+                            style={{ height: "40px", width: "40px" }}
+                        />
+                    </div>
+
+                    <div className="control-group">
+                        <div style={{ fontSize: '14px', color: '#fff', margin: '4px 4px 10px 4px' }}>SIZE</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+                                <label style={{ fontSize: '14px', color: '#ccc', marginRight: '4px' }}>W</label>
+                                <input className="size-input" value={width} onChange={(e) => handleSizeChange(e.target.value, height)} />
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+                                <label style={{ fontSize: '14px', color: '#ccc', marginRight: '4px' }}>H</label>
+                                <input className="size-input" value={height} onChange={(e) => handleSizeChange(width, e.target.value)} />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Requirement 3: Outline Button */}
+                    <button
+                        className="outset btn-action"
+                        onClick={handleOutline}
+                        title="Fill Perimeter with Black"
+                    >
+                        OUTLINE
+                    </button>
+                </div>
+
+                <div id="canvas-wrapper" className="inset">
+                    <canvas
+                        ref={canvasRef}
+                        onMouseDown={handleMouseDown}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={handleMouseUp}
+                        onMouseLeave={handleMouseUp}
+                        onWheel={handleWheel}
+                    />
+                </div>
+
+                <div id="right-panel">
+                    <div className="panel-box inset">
+                        <div className="panel-title">PROPERTIES</div>
+                        <div style={{ fontSize: '14px' }}>
+                            X: {hoverStat.x} <br />
+                            Y: {hoverStat.y} <br />
+                            IDX: {hoverStat.val}
+                        </div>
+                    </div>
+
+                    <div className="panel-box inset">
+                        <div className="panel-title">PALETTE</div>
+                        <div className="palette-grid">
+                            {PALETTE.map((c, i) => (
+                                <div
+                                    key={i}
+                                    className={`swatch ${brush === i ? 'active' : ''}`}
+                                    style={{ backgroundColor: c }}
+                                    onClick={() => { setBrush(i); if (tool === 'eraser') setTool('pencil'); }}
+                                />
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="panel-box inset" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                        <div className="panel-title">PREVIEW</div>
+                        <div id="preview-box">
+                            <canvas ref={previewRef} id="previewCanvas"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="footer-area">
+                <div id="status-bar" className="inset" style={{fontSize: '14px'}}>
+                    STATUS: Ready | {width}x{height} | Zoom: {Math.floor(scale)}px
+                </div>
+                <button className="outset btn-action" onClick={exportMap}>EXPORT .C</button>
+            </div>
+        </div>
+    );
+    //   return (
+    //     <div style={{ width: '100vw', height: '100vh' }}>
+    //     </div>
+    //   );
+}
