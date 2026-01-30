@@ -1,5 +1,5 @@
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: system-ui, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
@@ -96,14 +96,14 @@ button:focus-visible {
 }
 
 /* Utility Classes */
-.font-press-start {
+/* .font-press-start {
   font-family: 'Press Start 2P', cursive;
 }
 
 .bungee-regular {
   font-family: "Bungee", sans-serif;
   font-weight: 400;
-}
+} */
 
 /* Windows 95 Bevel Style */
 .outset {
