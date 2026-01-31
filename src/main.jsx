@@ -1,39 +1,30 @@
-import React, { useEffect, useRef, useState, StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
+import React, { Suspense, lazy } from 'react' // Import Suspense and lazy
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import './index.css'
 import App from './App.jsx';
-import PickachuSim from './mini_games/Pikachu_Sim.jsx'
-import CubeCharacterSim from './mini_games/Cube_Character_Sim.jsx'
-import PixelEditor from './tools/Pixel_Editor.jsx';
-import Map from './tools/Map.jsx';
-import WSConnection from './tools/WSConnection.jsx';
 
+// LAZY LOAD these heavy components
+const PickachuSim = lazy(() => import('./mini_games/Pikachu_Sim.jsx'));
+const CubeCharacterSim = lazy(() => import('./mini_games/Cube_Character_Sim.jsx'));
+const PixelEditor = lazy(() => import('./tools/Pixel_Editor.jsx'));
+const Map = lazy(() => import('./tools/Map.jsx'));
+const WSConnection = lazy(() => import('./tools/WSConnection.jsx'));
 
-function Home() {
-  return (<App />);
-}
+// Simple loading spinner for when switching tabs
+const Loading = () => <div style={{color: 'white'}}>Loading 3D Engine...</div>;
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  // <React.StrictMode>
-  //   <App />
-  // </React.StrictMode>,
-    <BrowserRouter>
+  <BrowserRouter>
+    <Suspense fallback={<Loading />}>
       <Routes>
-        {/* Separate top-level routes – no nesting */}
-        <Route path="/" element={<Home />} /> {/* Home page */}
+        <Route path="/" element={<App />} />
         <Route path="/pikachu" element={<PickachuSim />} />
         <Route path="/cube-character-sim" element={<CubeCharacterSim />} />
         <Route path="/pixel-editor" element={<PixelEditor />} />
         <Route path="/world-map" element={<Map />} />
         <Route path="/wsconnection" element={<WSConnection />}/>
-
-
-
-
-        {/* <Route path="/editorapp" element={<EditorApp/>} /> */}
-
       </Routes>
-    </BrowserRouter>
+    </Suspense>
+  </BrowserRouter>
 );

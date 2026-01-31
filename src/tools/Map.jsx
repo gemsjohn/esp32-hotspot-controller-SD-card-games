@@ -191,7 +191,7 @@ const Map = ({ isModalOpen = false, isMobile = false }) => {
       </div>
 
       {/* 3D Background */}
-      <div style={{
+      {/* <div style={{
         position: 'absolute', top: 0, left: 0,
         width: '100%', height: '100%',
         textAlign: 'center', backgroundColor: '#00000000',
@@ -208,7 +208,7 @@ const Map = ({ isModalOpen = false, isMobile = false }) => {
             </EffectComposer>
           </Suspense>
         </Canvas>
-      </div>
+      </div> */}
     </div>
   );
 };
